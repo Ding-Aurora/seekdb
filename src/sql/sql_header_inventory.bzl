@@ -478,6 +478,7 @@ SQL_PRIVATE_HEADERS = [
     "engine/basic/ob_hp_infrastructure_manager.h",
     "engine/basic/ob_hp_infrastructure_manager.ipp",
     "engine/basic/ob_json_table_op.h",
+    "engine/basic/file_scan_utils.h",
     "engine/basic/ob_limit_op.h",
     "engine/basic/ob_material_op.h",
     "engine/basic/ob_material_op_impl.h",

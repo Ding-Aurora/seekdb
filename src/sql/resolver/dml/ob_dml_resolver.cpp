@@ -3926,6 +3926,16 @@ int ObDMLResolver::resolve_json_table_item(const ParseNode &parse_tree, TableIte
 int ObDMLResolver::resolve_function_table_item(const ParseNode &parse_tree,
                                                TableItem *&tbl_item)
 {
+  const ParseNode *call = parse_tree.num_child_ == 2 ? parse_tree.children_[0] : nullptr;
+  if (call != nullptr && call->type_ == T_FUN_SYS && call->num_child_ == 2
+      && call->children_[0] != nullptr) {
+    ObString name(call->children_[0]->str_len_, call->children_[0]->str_value_);
+    if (name.case_compare("read_csv") == 0 || name.case_compare("read_json") == 0
+        || name.case_compare("read_ndjson") == 0 || name.case_compare("read_parquet") == 0
+        || name.case_compare("glob") == 0) {
+      return resolve_file_table_item(parse_tree, tbl_item);
+    }
+  }
   int ret = OB_SUCCESS;
   ObDMLStmt *stmt = get_stmt();
   ParseNode *alias_node = NULL;

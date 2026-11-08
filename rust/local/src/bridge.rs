@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::records;
+use crate::file_sql::{FileSource, FileExport, file_inspect, file_resume, file_export};
 use std::{
     cell::{Cell as Flag, RefCell},
     path::Path,
@@ -20,6 +21,15 @@ use std::{
 
 #[cxx::bridge(namespace = "oceanbase::local")]
 pub mod ffi {
+    struct FileColumn {
+        name: String,
+        kind: u8,
+        nullable: bool,
+    }
+    struct FileCell {
+        text: String,
+        is_null: bool,
+    }
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     enum Code {
         Ok,
@@ -121,6 +131,22 @@ pub mod ffi {
         fn visit(self: &RowCallback, row: &[Value]) -> i32;
     }
     extern "Rust" {
+        type FileExport;
+        fn file_export(path: &str, options: &str, secure_root: &str, headers: &[FileCell]) -> Box<FileExport>;
+        fn copy_status(self: &FileExport) -> i32;
+        fn copy_error(self: &FileExport) -> String;
+        fn copy_write(self: &mut FileExport, cells: &[FileCell]) -> i32;
+        fn copy_finish(self: &mut FileExport) -> i32;
+        type FileSource;
+        fn file_inspect(path: &str, format: &str, options: &str, secure_root: &str) -> Box<FileSource>;
+        fn file_resume(snapshot: &str, secure_root: &str, projection: &[i32]) -> Box<FileSource>;
+        fn file_columns(self: &FileSource) -> Vec<FileColumn>;
+        fn file_snapshot(self: &FileSource) -> String;
+        fn file_status(self: &FileSource) -> i32;
+        fn file_error(self: &FileSource) -> String;
+        fn file_next(self: &mut FileSource) -> i32;
+        fn file_row(self: &FileSource) -> &[FileCell];
+        fn file_rescan(self: &mut FileSource) -> i32;
         type Store;
         fn open_storage(path: &str) -> Box<Store>;
         fn status(self: &Store) -> i32;

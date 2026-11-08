@@ -37,6 +37,7 @@ struct JtScanCtx;
 class ObExpr;
 struct JtScanCtx;
 class ObJsonTableSpec;
+class FileSqlScan;
 class MulModeTableFunc;
 class JoinNode;
 class ObRegCol;
@@ -118,7 +119,7 @@ struct JtColTreeNode {
 
 class ObJsonTableSpec : public ObOpSpec
 {
-OB_UNIS_VERSION_V(1);
+OB_UNIS_VERSION_V(2);
 public:
   ObJsonTableSpec(common::ObIAllocator &alloc, const ObPhyOperatorType type)
     : ObOpSpec(alloc, type),
@@ -197,7 +198,8 @@ public:
       input_(nullptr),
       j_null_(),
       j_arr_(allocator_),
-      j_obj_(allocator_)
+      j_obj_(allocator_),
+      file_scan_(nullptr)
   {
     const ObJsonTableSpec* spec_ptr = reinterpret_cast<const ObJsonTableSpec*>(&spec);
     col_count_ = spec_ptr->column_exprs_.count();
@@ -207,7 +209,7 @@ public:
   virtual int inner_rescan() override;
   virtual int switch_iterator() override;
   virtual int inner_get_next_row() override;
-  //virtual int inner_get_next_batch(int64_t max_row_cnt) override;
+  virtual int inner_get_next_batch(int64_t max_row_cnt) override;
   virtual int inner_close() override;
   virtual void destroy() override;
   ObJsonNull* get_js_null() { return &j_null_; }
@@ -246,6 +248,7 @@ private:
   ObJsonNull j_null_;
   ObJsonArray j_arr_;
   ObJsonObject j_obj_;
+  FileSqlScan *file_scan_;
 };
 
 class MulModeTableFunc {
