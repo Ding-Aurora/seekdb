@@ -307,8 +307,21 @@ fn discover(pattern:&str,root:&str) -> Result<Vec<PathBuf>> {
         else {Path::new(literal).parent().unwrap_or(Path::new("."))};
     canonical_allowed(parent,root)?;
     let mut files=Vec::new();
+    let options = glob::MatchOptions {
+        require_literal_separator: true,
+        require_literal_leading_dot: true,
+        ..glob::MatchOptions::new()
+    };
+    let normalized_pattern = Path::new(pattern).components().collect::<PathBuf>();
+    let matcher = glob::Pattern::new(&normalized_pattern.to_string_lossy()).map_err(io)?;
     for item in glob::glob(pattern).map_err(io)? {
         let path=item.map_err(io)?;
+        // The glob iterator prunes dotfiles even for explicit dot patterns.
+        // Apply the leading-dot rule to the matched path instead.
+        let normalized_path = path.components().collect::<PathBuf>();
+        if !matcher.matches_path_with(&normalized_path, options) {
+            continue;
+        }
         let actual=canonical_allowed(&path,root)?;
         if actual.is_file() {files.push(actual);}
         if files.len()>MAX_FILES {return Err(Error(-6,"glob has more than 10000 files".into()));}
@@ -580,10 +593,14 @@ mod tests {
     #[test]
     fn glob_describe_and_json_string_conflicts() {
         let f=Fixture::new();f.write("a.csv","id\n1\n");f.write("b.csv","id\n2\n");
+        f.write("._a.csv", "AppleDouble metadata");
         let mut paths=file_inspect(&format!("{}/*.csv",f.root()),"glob","{}",f.root());
         assert_eq!(0,paths.file_status(),"{}",paths.file_error());
         assert_eq!(0,paths.file_next());assert!(paths.file_row()[0].text.ends_with("a.csv"));
         assert_eq!(0,paths.file_next());assert_eq!(END,paths.file_next());assert_eq!(0,paths.file_rescan());
+        let explicit = discover(&format!("{}/._*.csv", f.root()), f.root()).unwrap();
+        assert_eq!(explicit.len(), 1);
+        assert_eq!(explicit[0].file_name().unwrap(), "._a.csv");
         let path=f.write("strings.jsonl","{\"id\":1,\"flag\":true}\n{\"id\":\"002\",\"flag\":\"false\"}\n");
         let inspected=file_inspect(&path,"json",r#"{"__describe":true}"#,f.root());
         assert_eq!(6,inspected.file_columns().len());
