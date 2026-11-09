@@ -486,7 +486,10 @@ int ObInsertResolver::resolve_values(const ParseNode &value_node,
     LOG_WARN("invalid stat", K(insert_stmt), K_(allocator));
   } else if (T_VALUE_LIST == value_node.type_) {
     // value list
-    if (OB_FAIL(resolve_insert_values(&value_node,
+    for (int64_t i = 0; OB_SUCC(ret) && i < insert_stmt->get_values_desc().count(); ++i) {
+      ret = check_ai_column_reference(insert_stmt->get_values_desc().at(i), true);
+    }
+    if (OB_SUCC(ret) && OB_FAIL(resolve_insert_values(&value_node,
                                       insert_stmt->get_insert_table_info()))) {
     }
   } else if (T_ASSIGN_LIST == value_node.type_) {
@@ -834,6 +837,7 @@ int ObInsertResolver::check_insert_select_field(ObInsertStmt &insert_stmt,
     const ObColumnRefRawExpr *value_desc = values_desc.at(i);
     if (OB_ISNULL(value_desc)) {
       ret = OB_ERR_UNEXPECTED;
+    } else if (OB_FAIL(check_ai_column_reference(const_cast<ObColumnRefRawExpr *>(value_desc), true))) {
     } else if (OB_FAIL(ObDMLResolver::check_basic_column_generated(value_desc,
                                                                    &insert_stmt,
                                                                    is_generated_column))) {

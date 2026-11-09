@@ -355,6 +355,11 @@ int ObOllamaUtils::ObOllamaComplete::get_body(common::ObIAllocator &allocator,
     } else if (OB_FAIL(ObAIFuncJsonUtils::get_json_boolean(allocator, false, stream))) {
     } else if (OB_FAIL(body_obj->add("stream", stream))) {
     } else {
+      if (!prompt.empty()) {
+        ObJsonString *system = nullptr;
+        if (OB_FAIL(ObAIFuncJsonUtils::get_json_string(allocator, prompt, system))) {
+        } else { ret = body_obj->add("system", system); }
+      }
       body = body_obj;
     }
   }
@@ -1353,7 +1358,8 @@ int ObAIFuncUtils::get_ai_func_info(ObIAllocator &allocator, const ObString &mod
   return ret;
 }
 
-int ObAIFuncModel::call_completion(ObString &prompt, ObJsonObject *config, ObString &result)
+int ObAIFuncModel::call_completion(ObString &prompt, ObJsonObject *config, ObString &result,
+                                  const ObString &system_prompt)
 {
   int ret = OB_SUCCESS;
   ObArray<ObString> headers;
@@ -1361,7 +1367,7 @@ int ObAIFuncModel::call_completion(ObString &prompt, ObJsonObject *config, ObStr
   ObJsonObject *response = nullptr;
   ObIJsonBase *result_base = nullptr;
   ObAIFuncIComplete *complete_provider = nullptr;
-  ObString prompt_str;
+  ObString prompt_str = system_prompt;
   ObString result_str;
   ObAIFuncClient client;
   ObString unencrypted_access_key;

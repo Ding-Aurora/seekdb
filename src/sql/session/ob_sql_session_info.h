@@ -622,6 +622,28 @@ public:
   // sql from obclient, proxy, PL are all marked as user_session
   // NOTE: for sql from PL, is_inner() = true, is_user_session() = true
   inline bool is_user_session() const { return USER_SESSION == session_type_; }
+  struct AiColumnRetryTarget {
+    uint64_t table_id = 0;
+    uint64_t column_id = 0;
+    int64_t level = -1;
+  };
+  bool is_ai_column_internal_write() const
+  {
+    const auto level = ai_column_scope_level();
+    return level < 64 && (ai_column_internal_levels_ & (uint64_t(1) << level)) != 0;
+  }
+  uint64_t get_ai_column_retry_id(uint64_t table_id = 0) const
+  {
+    const auto level = ai_column_retry_.level < 0 ? 0 : ai_column_retry_.level;
+    return level == ai_column_scope_level() && (table_id == 0 || ai_column_retry_.table_id == table_id)
+        ? ai_column_retry_.column_id : 0;
+  }
+  AiColumnRetryTarget get_ai_column_retry_target() const { return ai_column_retry_; }
+  void set_ai_column_retry_target(AiColumnRetryTarget target) { ai_column_retry_ = target; }
+  void enter_ai_column_internal_write()
+  { const auto level = ai_column_scope_level(); if (level < 64) { ai_column_internal_levels_ |= uint64_t(1) << level; } }
+  void leave_ai_column_internal_write()
+  { const auto level = ai_column_scope_level(); if (level < 64) { ai_column_internal_levels_ &= ~(uint64_t(1) << level); } }
   bool is_inner() const
   {
     return inner_flag_;
@@ -1028,6 +1050,10 @@ private:
   dbms_scheduler::ObDBMSSchedJobInfo *job_info_; // dbms_scheduler related.
   void *iter_cache_;
   void *tx_ctx_cache_;
+  // A top-level statement has depth -1 before execution and depth 0 once it starts.
+  int64_t ai_column_scope_level() const { return nested_count_ < 0 ? 0 : nested_count_; }
+  uint64_t ai_column_internal_levels_ = 0;
+  AiColumnRetryTarget ai_column_retry_;
   common::ObString audit_filter_name_;
   ObExecutingSqlStatRecord executing_sql_stat_record_;
 };

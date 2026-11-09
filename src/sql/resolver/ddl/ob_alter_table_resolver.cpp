@@ -148,6 +148,32 @@ int ObAlterTableResolver::resolve(const ParseNode &parse_tree)
       alter_table_stmt->get_alter_table_arg().alter_table_schema_.set_charset_type(table_schema_->get_charset_type());
       alter_table_stmt->get_alter_table_arg().alter_table_schema_.set_collation_type(table_schema_->get_collation_type());
     }
+    if (OB_SUCC(ret) && parse_tree.children_[ACTION_LIST] != nullptr) {
+      const auto &actions = *parse_tree.children_[ACTION_LIST];
+      for (int64_t i = 0; i < actions.num_child_; ++i) {
+        const auto *action = actions.children_[i];
+        if (action != nullptr && action->type_ == T_AI_COLUMN && action->value_ == 1) {
+          if (actions.num_child_ != 1) {
+            LOG_USER_ERROR(OB_NOT_SUPPORTED, "combining AI COLUMN RETRY with another ALTER action");
+            return OB_NOT_SUPPORTED;
+          }
+          const auto *keyword = action->children_[0];
+          if (keyword == nullptr || ObString(keyword->str_len_, keyword->str_value_).case_compare("retry") != 0) { return OB_ERR_PARSE_SQL; }
+          const auto *name = action->children_[1];
+          const auto *column = name == nullptr ? nullptr : table_schema_->get_column_schema(ObString(name->str_len_, name->str_value_));
+          if (column == nullptr || !column->is_ai_column()) {
+            LOG_USER_ERROR(OB_NOT_SUPPORTED, "retrying a column that is not an AI column");
+            return OB_NOT_SUPPORTED;
+          }
+          alter_table_stmt->ai_column_retry_id_ = column->get_column_id();
+          const auto *predicate = action->children_[2];
+          if (predicate != nullptr) {
+            ret = ob_write_string(*allocator_, ObString(predicate->str_len_, predicate->str_value_), alter_table_stmt->ai_column_retry_predicate_);
+          }
+          return ret;
+        }
+      }
+    }
     //resolve action list
     if (OB_SUCCESS == ret && NULL != parse_tree.children_[ACTION_LIST]){
       if (OB_FAIL(resolve_action_list(*(parse_tree.children_[ACTION_LIST])))) {

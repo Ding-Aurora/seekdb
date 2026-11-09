@@ -294,6 +294,7 @@ int ObLocalManagementService::stop()
     fail_ret = OB_SUCCESS == fail_ret ? ret : fail_ret;
   } else {
     local_services_ready_ = false;
+    ai_column_worker_.stop();
     service_started_ = false;
     FLOG_INFO("local management service marked stopped");
 
@@ -331,6 +332,7 @@ int ObLocalManagementService::stop()
 
 void ObLocalManagementService::wait()
 {
+  ai_column_worker_.wait();
   FLOG_INFO("wait local management services begin");
   int64_t start_time = ObTimeUtility::current_time();
   FLOG_INFO("start to wait all thread exit");
@@ -1877,6 +1879,9 @@ int ObLocalManagementService::start_local_services_()
     }
   }
 
+  if (OB_SUCC(ret)) {
+    ret = ai_column_worker_.start_workers(sql_proxy_);
+  }
   if (OB_SUCC(ret)) {
     local_services_ready_ = true;
     root_minor_freeze_.start();

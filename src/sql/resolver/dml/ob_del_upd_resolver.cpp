@@ -123,6 +123,8 @@ int ObDelUpdResolver::resolve_assignments(const ParseNode &parse_node,
         if (OB_FAIL(mock_values_column_ref(ref_expr))) {
         }
       }
+      if (OB_SUCC(ret) && OB_FAIL(check_ai_column_reference(ref_expr, true))) {
+      }
       // process expression
       if (OB_SUCC(ret)) {
         assignment.column_expr_ = column->expr_;

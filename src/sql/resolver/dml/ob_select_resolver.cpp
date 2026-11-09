@@ -1665,6 +1665,7 @@ int ObSelectResolver::expand_target_list(
 
   for (int64_t i = 0; OB_SUCC(ret) && i < column_items.count(); ++i) {
     const ColumnItem &col_item = column_items.at(i);
+    if (OB_FAIL(check_ai_column_reference(col_item.expr_))) { break; }
     SelectItem tmp_select_item;
     if (table_item.is_generated_table() || table_item.is_temp_table()) {
       if (OB_ISNULL(table_item.ref_query_) || i >= table_item.ref_query_->get_select_item_size()) {
@@ -3233,6 +3234,7 @@ int ObSelectResolver::resolve_column_ref_expr(
   }
   if (OB_SUCC(ret) && OB_FAIL(resolve_column_ref_in_all_namespace(q_name, real_ref_expr))) {
     LOG_WARN_IGNORE_COL_NOTFOUND(ret, "resolve column ref in all namespace failed", K(ret));
+  } else if (OB_SUCC(ret) && OB_FAIL(check_ai_column_reference(real_ref_expr))) {
   }
   return ret;
 }

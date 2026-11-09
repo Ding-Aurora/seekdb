@@ -1036,6 +1036,12 @@ int ObSchemaRetrieveUtils::fill_column_schema(const bool check_deleted, T &resul
     EXTRACT_INT_FIELD_TO_CLASS_MYSQL_WITH_DEFAULT_VALUE(result, skip_index_attr, column, uint64_t , true, true, ObSkipIndexColumnAttr::OB_DEFAULT_SKIP_INDEX_COLUMN_ATTR);
     EXTRACT_INT_FIELD_TO_CLASS_MYSQL_WITH_DEFAULT_VALUE(result, lob_chunk_size, column, int64_t, true, true, OB_DEFAULT_LOB_CHUNK_SIZE);
 
+    if (OB_SUCC(ret)) {
+      ObString definition;
+      ObString empty;
+      EXTRACT_VARCHAR_FIELD_MYSQL_WITH_DEFAULT_VALUE(result, "ai_column_definition", definition, true, true, empty);
+      if (OB_SUCC(ret)) { ret = column.set_ai_column_definition(definition); }
+    }
     common::ColumnType default_type = column.get_data_type();
     if (column.is_generated_column()) {
       default_type = ObVarcharType;

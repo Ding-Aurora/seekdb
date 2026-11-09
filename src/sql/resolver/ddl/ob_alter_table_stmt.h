@@ -52,6 +52,8 @@ public:
   void set_is_alter_system(const bool flag) { is_alter_system_ = flag; }
 
   bool is_alter_triggers() const { return is_alter_triggers_; }
+  uint64_t ai_column_retry_id_ = 0;
+  common::ObString ai_column_retry_predicate_;
   void set_is_alter_triggers(const bool flag) { is_alter_triggers_ = flag; }
 
   int set_origin_database_name(const common::ObString &origin_db_name);

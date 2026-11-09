@@ -522,6 +522,7 @@ END_P SET_VAR DELIMITER
 %type <node> skip_index_type opt_skip_index_type_list
 %type <node> vec_index_params vec_index_param vec_index_param_value opt_with_vector_index_parameters
 %type <node> file_table_expr
+%type <node> ai_column_options ai_column_retry_where
 %type <node> file_copy_stmt file_copy_source file_copy_options file_copy_option_list file_copy_option
 %type <node> json_table_expr unnest_expr mock_jt_on_error_on_empty jt_column_list json_table_column_def
 %type <node> json_table_ordinality_column_def json_table_exists_column_def json_table_value_column_def json_table_nested_column_def
@@ -6165,8 +6166,18 @@ column_attribute_list column_attribute
   $$ = $1;
 }
 
+ai_column_options:
+/* EMPTY */ { $$ = NULL; }
+| WITH '(' file_copy_option_list ')' { merge_nodes($$, result, T_EXPR_LIST, $3); }
+;
+
 column_attribute:
-not NULLX
+AI COLUMN '(' expr ')' ai_column_options
+{
+  dup_expr_string($4, result, @4.first_column, @4.last_column);
+  malloc_non_terminal_node($$, result->malloc_pool_, T_AI_COLUMN, 2, $4, $6);
+}
+| not NULLX
 {
   (void)($1) ;
   (void)($2) ; /* make bison mute */
@@ -8541,7 +8552,7 @@ file_copy_option:
 relation_name STRING_VALUE { malloc_non_terminal_node($$, result->malloc_pool_, T_OP_EQ, 2, $1, $2); }
 | relation_name BOOL_VALUE { malloc_non_terminal_node($$, result->malloc_pool_, T_OP_EQ, 2, $1, $2); }
 | relation_name relation_name { malloc_non_terminal_node($$, result->malloc_pool_, T_OP_EQ, 2, $1, $2); }
-| relation_name '=' expr { malloc_non_terminal_node($$, result->malloc_pool_, T_OP_EQ, 2, $1, $3); }
+| relation_name COMP_EQ expr { malloc_non_terminal_node($$, result->malloc_pool_, T_OP_EQ, 2, $1, $3); }
 | relation_name
 {
   ParseNode *enabled = NULL;
@@ -8940,6 +8951,15 @@ opt_where opt_groupby opt_having opt_named_windows
 
   setup_token_pos_info(from_list, @5.first_column - 1, 4);
   setup_token_pos_info(select_node, @1.first_column - 1, 6);
+}
+;
+
+ai_column_retry_where:
+/* EMPTY */ { $$ = NULL; }
+| WHERE expr
+{
+  dup_expr_string($2, result, @2.first_column, @2.last_column);
+  $$ = $2;
 }
 ;
 
@@ -12735,6 +12755,14 @@ SHOW opt_extended_or_full TABLES opt_from_or_in_database_clause opt_show_conditi
   $$->value_ = $2[0];
   malloc_non_terminal_node($$, result->malloc_pool_, T_SHOW_COLUMNS, 4, $$, $5, $6, $7);
 }
+| SHOW AI COLUMNS from_or_in relation_factor opt_from_or_in_database_clause opt_show_condition
+{
+  (void)$4;
+  ParseNode *mode = NULL;
+  malloc_terminal_node(mode, result->malloc_pool_, T_INT);
+  mode->value_ = 4;
+  malloc_non_terminal_node($$, result->malloc_pool_, T_SHOW_COLUMNS, 4, mode, $5, $6, $7);
+}
 | SHOW TABLE STATUS opt_from_or_in_database_clause opt_show_condition
 { malloc_non_terminal_node($$, result->malloc_pool_, T_SHOW_TABLE_STATUS, 2, $4, $5); }
 | SHOW PROCEDURE STATUS opt_from_or_in_database_clause opt_show_condition
@@ -14781,6 +14809,12 @@ alter_table_action
 ;
 
 alter_table_action:
+NAME_OB AI COLUMN column_name ai_column_retry_where
+{
+  malloc_non_terminal_node($$, result->malloc_pool_, T_AI_COLUMN, 3, $1, $4, $5);
+  $$->value_ = 1;
+}
+|
 opt_set table_option_list_space_seperated
 {
   (void)$1;
