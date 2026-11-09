@@ -264,7 +264,7 @@ int ObBasicEnglishNormalizer::get_next(ObDatum &next_token, int64_t &token_freq)
         const char *token = tmp_datum.ptr_;
         const uint32_t raw_token_len = tmp_datum.len_;
         uint32_t first_alnum_pos = 0;
-        uint32_t last_alnum_pos = raw_token_len - 1;
+        uint32_t last_alnum_pos = raw_token_len;
         for (uint32_t i = 0; i < raw_token_len; ++i) {
           const char *character = token + i;
           if (ob_isalnum(cs_, *character)) {
@@ -274,21 +274,12 @@ int ObBasicEnglishNormalizer::get_next(ObDatum &next_token, int64_t &token_freq)
           }
         }
 
-        for (int32_t i = raw_token_len - 1; 0 <= i && i < raw_token_len && i >= first_alnum_pos; --i) {
-          const char *character = token + i;
-          if (ob_isalnum(cs_, *character)) {
-            last_alnum_pos = i;
-            found_alnum = true;
-            break;
+        if (found_alnum) {
+          while (last_alnum_pos > first_alnum_pos + 1
+                 && !ob_isalnum(cs_, token[last_alnum_pos - 1])) {
+            --last_alnum_pos;
           }
-        }
-
-        if (!found_alnum) {
-          // skip
-        } else if (OB_UNLIKELY(last_alnum_pos < first_alnum_pos)) {
-          ret = OB_ERR_UNEXPECTED;
-        } else {
-          norm_token_len = last_alnum_pos - first_alnum_pos + 1;
+          norm_token_len = last_alnum_pos - first_alnum_pos;
           norm_token_ptr = token + first_alnum_pos;
         }
       }
@@ -300,7 +291,15 @@ int ObBasicEnglishNormalizer::get_next(ObDatum &next_token, int64_t &token_freq)
     } else {
       ObString norm_alnum_token(norm_token_len, norm_token_ptr);
       ObString norm_lower_token;
-      if (OB_FAIL(ObCharset::tolower(cs_, norm_alnum_token, norm_lower_token, norm_allocator_))) {
+      bool already_lowercase = cs_->number == CS_TYPE_UTF8MB4_GENERAL_CI
+                            || cs_->number == CS_TYPE_UTF8MB4_BIN;
+      for (uint32_t i = 0; already_lowercase && i < norm_token_len; ++i) {
+        const unsigned char c = norm_token_ptr[i];
+        already_lowercase = c < 0x80 && !(c >= 'A' && c <= 'Z');
+      }
+      if (already_lowercase) {
+        next_token.set_string(norm_alnum_token);
+      } else if (OB_FAIL(ObCharset::tolower(cs_, norm_alnum_token, norm_lower_token, norm_allocator_))) {
       } else {
         next_token.set_string(norm_lower_token);
       }
