@@ -5569,16 +5569,8 @@ int ObStaticEngineCG::generate_spec(ObLogJsonTable &op, ObJsonTableSpec &spec,
   }
   if (OB_SUCC(ret)) {
     spec.table_type_ = op.get_table_type();  // table func type
-    if (spec.table_type_ == OB_FILE_TABLE_TYPE && phy_plan_->is_vectorized()) {
-      spec.max_batch_size_ = phy_plan_->get_batch_size();
-    }
 
     if (OB_FAIL(spec.dup_origin_column_defs(op.get_origin_cols_def()))) {
-    }
-    if (OB_SUCC(ret) && spec.table_type_ == OB_FILE_TABLE_TYPE) {
-      for (int64_t i = 0; i < spec.cols_def_.count(); ++i) {
-        spec.cols_def_.at(i)->output_column_idx_ = -1;
-      }
     }
 
     for (int64_t i = 0; OB_SUCC(ret) && i < op.get_output_exprs().count(); ++i) {

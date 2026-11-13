@@ -413,7 +413,6 @@ public:
                        K_(full_row),
                        K_(view_check_exprs),
                        K_(is_primary_index),
-                       K_(has_ai_column),
                        K_(is_table_without_pk),
                        KPC_(trans_info_expr));
 
@@ -436,7 +435,7 @@ public:
   ExprFixedArray view_check_exprs_;
   bool is_primary_index_;
   bool is_table_without_pk_;
-  bool has_ai_column_;
+  bool reserved_advanced_trigger_;
   ObExpr *trans_info_expr_;
   bool is_vec_hnsw_index_vid_opt_;
 protected:
@@ -455,7 +454,7 @@ protected:
       view_check_exprs_(alloc),
       is_primary_index_(false),
       is_table_without_pk_(false),
-      has_ai_column_(false),
+      reserved_advanced_trigger_(false),
       trans_info_expr_(nullptr),
       is_vec_hnsw_index_vid_opt_(false)
   { }

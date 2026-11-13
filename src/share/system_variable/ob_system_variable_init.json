@@ -10975,31 +10975,5 @@
     "info_cn": "",
     "background_cn": "",
     "ref_url": ""
-  },
-  "ai_column_strict_read": {
-    "id": 10755,
-    "name": "ai_column_strict_read",
-    "default_value": "0",
-    "base_value": "0",
-    "data_type": "bool",
-    "info": "Reject referenced AI columns with rows that are not ready",
-    "flags": "SESSION | INFLUENCE_PLAN | NEED_SERIALIZE",
-    "publish_version": "1.4.0.0",
-    "info_cn": "拒绝读取包含未就绪行的 AI 列",
-    "background_cn": "",
-    "ref_url": ""
-  },
-  "enable_file_sql": {
-    "id": 10754,
-    "name": "enable_file_sql",
-    "default_value": "0",
-    "base_value": "0",
-    "data_type": "bool",
-    "info": "Enable local file SQL subject to secure_file_priv",
-    "flags": "SESSION | GLOBAL",
-    "publish_version": "1.4.0.0",
-    "info_cn": "启用受 secure_file_priv 限制的本地文件表函数",
-    "background_cn": "",
-    "ref_url": ""
   }
 }

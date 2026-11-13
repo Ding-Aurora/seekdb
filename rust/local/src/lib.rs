@@ -16,6 +16,5 @@
 //! records add typed fields, ordered keys and streaming selection, without SQL.
 mod bridge;
 mod records;
-mod file_sql;
 
 pub use bridge::Store;

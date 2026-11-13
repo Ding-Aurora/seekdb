@@ -20,7 +20,6 @@
 #include <memory>
 
 #include "ob_select_into_op.h"
-#include "file_scan_utils.h"
 #include "sql/engine/cmd/ob_variable_set_executor.h"
 #include "lib/charset/ob_charset_string_helper.h"
 #include "sql/engine/px/ob_px_sqc_handler.h"
@@ -45,15 +44,6 @@ OB_SERIALIZE_MEMBER((ObSelectIntoSpec, ObOpSpec), into_type_, user_vars_, outfil
 int ObSelectIntoOp::inner_open()
 {
   int ret = OB_SUCCESS;
-  if (MY_SPEC.into_type_ == T_INTO_COPY) {
-    opened_ = true;
-    if (OB_FAIL(ctx_.get_my_session()->get_sql_select_limit(top_limit_cnt_))) {
-    } else {
-      file_export_ = new (std::nothrow) FileSqlExport(MY_SPEC, ctx_, eval_ctx_);
-      ret = file_export_ == nullptr ? OB_ALLOCATE_MEMORY_FAILED : file_export_->open();
-    }
-    return ret;
-  }
   ObSQLSessionInfo *session = NULL;
   if (OB_ISNULL(session = ctx_.get_my_session())) {
     ret = OB_ERR_UNEXPECTED;
@@ -198,7 +188,6 @@ int ObSelectIntoOp::calc_outfile_path()
 }
 int ObSelectIntoOp::inner_get_next_row()
 {
-  if (MY_SPEC.into_type_ == T_INTO_COPY) { return execute_file_copy(false, 1); }
   int ret = 0 == top_limit_cnt_ ? OB_ITER_END : OB_SUCCESS;
   int64_t row_count = 0;
   const ObItemType into_type = MY_SPEC.into_type_;
@@ -247,7 +236,6 @@ int ObSelectIntoOp::inner_get_next_row()
 
 int ObSelectIntoOp::inner_get_next_batch(const int64_t max_row_cnt)
 {
-  if (MY_SPEC.into_type_ == T_INTO_COPY) { return execute_file_copy(true, max_row_cnt); }
   int ret = OB_SUCCESS;
   const ObBatchRows *child_brs = NULL;
   int64_t batch_size = min(max_row_cnt, MY_SPEC.max_batch_size_);
@@ -337,8 +325,6 @@ int ObSelectIntoOp::inner_rescan()
 int ObSelectIntoOp::inner_close()
 {
   int ret = OB_SUCCESS;
-  delete file_export_;
-  file_export_ = nullptr;
   if (OB_NOT_NULL(data_writer_) && OB_FAIL(data_writer_->close_data_writer())) {
   }
   return ret;
@@ -1289,54 +1275,11 @@ int ObSelectIntoOp::new_data_writer(ObExternalFileWriter *&data_writer)
 
 void ObSelectIntoOp::destroy()
 {
-  delete file_export_;
-  file_export_ = nullptr;
   if (OB_NOT_NULL(data_writer_)) {
     data_writer_->~ObExternalFileWriter();
   }
   external_properties_.~ObExternalFileFormat();
   ObOperator::destroy();
-}
-
-int ObSelectIntoOp::execute_file_copy(bool batch, int64_t max_row_cnt)
-{
-  int ret = file_export_ == nullptr ? OB_NOT_INIT : OB_SUCCESS;
-  int64_t rows = 0;
-  bool done = false;
-  while (OB_SUCC(ret) && !done && rows < top_limit_cnt_) {
-    clear_evaluated_flag();
-    if (batch) {
-      const ObBatchRows *input = nullptr;
-      if (OB_FAIL(child_->get_next_batch(min(max_row_cnt, top_limit_cnt_ - rows), input))) {
-      } else {
-        ObEvalCtx::BatchInfoScopeGuard guard(eval_ctx_);
-        guard.set_batch_size(input->size_);
-        for (int64_t i = 0; OB_SUCC(ret) && i < input->size_; ++i) {
-          if (input->skip_->contain(i)) { continue; }
-          guard.set_batch_idx(i);
-          ret = file_export_->write();
-          ++rows;
-        }
-        done = input->end_;
-      }
-    } else if (OB_FAIL(child_->get_next_row())) {
-      if (ret == OB_ITER_END) { ret = OB_SUCCESS; done = true; }
-    } else {
-      ret = file_export_->write();
-      ++rows;
-    }
-  }
-  if (OB_SUCC(ret)) { ret = file_export_->finish(); }
-  if (OB_SUCC(ret)) {
-    ctx_.get_physical_plan_ctx()->set_affected_rows(rows);
-    brs_.size_ = 0;
-    brs_.end_ = true;
-    if (!batch) { ret = OB_ITER_END; }
-  } else {
-    delete file_export_;
-    file_export_ = nullptr;
-  }
-  return ret;
 }
 
 }

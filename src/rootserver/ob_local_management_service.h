@@ -35,7 +35,6 @@
 #include "rootserver/ob_snapshot_info_manager.h"
 #include "rootserver/ob_objpriv_mysql_ddl_service.h"
 #include "query/command/ob_root_command_service.h"
-#include "sql/engine/expr/ai_column_worker.h"
 
 namespace oceanbase
 {
@@ -79,8 +78,6 @@ namespace rootserver
 // Process-local management entry point for schema, DDL, jobs, freeze and recycle-bin work.
 class ObLocalManagementService : public query::ObIRootCommandService
 {
-private:
-  sql::AiColumnWorker ai_column_worker_;
 public:
   friend class TestLocalManagementServiceCreateTable_check_rs_capacity_Test;
 

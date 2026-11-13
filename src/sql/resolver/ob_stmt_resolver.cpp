@@ -215,8 +215,7 @@ int ObStmtResolver::get_column_schema(const uint64_t table_id,
     ret = OB_NOT_INIT;
     SQL_RESV_LOG(WARN, "not init", K(ret), KP(schema_checker_), KP(session_info_));
   } else {
-    const bool hidden = get_hidden || session_info_->is_inner()
-        || session_info_->is_ai_column_internal_write() || session_info_->get_ai_column_retry_id() != 0;
+    const bool hidden = get_hidden || session_info_->is_inner();
 
     // Generated columns added by function-based indexes are hidden but may
     // still be selected through this path.
@@ -240,8 +239,7 @@ int ObStmtResolver::get_column_schema(const uint64_t table_id,
     ret = OB_NOT_INIT;
     SQL_RESV_LOG(WARN, "not init", K(ret), KP(schema_checker_), KP(session_info_));
   } else {
-    const bool hidden = get_hidden || session_info_->is_inner()
-        || session_info_->is_ai_column_internal_write() || session_info_->get_ai_column_retry_id() != 0;
+    const bool hidden = get_hidden || session_info_->is_inner();
     if (OB_FAIL(schema_checker_->get_column_schema( table_id, column_id, column_schema, hidden, is_link))) {
     }
   }

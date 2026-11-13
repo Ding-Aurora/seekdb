@@ -16,7 +16,6 @@
 
 #define USING_LOG_PREFIX SQL_ENG
 #include "ob_json_table_op.h"
-#include "file_scan_utils.h"
 #include "sql/engine/expr/ob_expr_multi_mode_func_helper.h"
 #include "sql/engine/expr/ob_expr_json_value.h"
 #include "sql/engine/expr/ob_expr_json_query.h"
@@ -327,10 +326,8 @@ OB_DEF_SERIALIZE(ObJsonTableSpec)
     OB_UNIS_ENCODE(info);
   }
   if (OB_FAIL(ret)) {
-  } else {
+  } else if (table_type_ == MulModeTableType::OB_UNNEST_TABLE_TYPE) {
     OB_UNIS_ENCODE(table_type_);
-  }
-  if (OB_SUCC(ret) && table_type_ == MulModeTableType::OB_UNNEST_TABLE_TYPE) {
     int32_t value_exprs_count = value_exprs_.count() - 1;
     OB_UNIS_ENCODE(value_exprs_count);
     for (size_t i = 1; OB_SUCC(ret) && i < value_exprs_.count(); ++i) {
@@ -357,8 +354,8 @@ OB_DEF_SERIALIZE_SIZE(ObJsonTableSpec)
     const ObJtColInfo& info = *cols_def_.at(i);
     OB_UNIS_ADD_LEN(info);
   }
-  OB_UNIS_ADD_LEN(table_type_);
   if (table_type_ == MulModeTableType::OB_UNNEST_TABLE_TYPE) {
+    OB_UNIS_ADD_LEN(table_type_);
     int32_t value_exprs_count = value_exprs_.count() - 1;
     OB_UNIS_ADD_LEN(value_exprs_count);
     for (size_t i = 1; i < value_exprs_.count(); ++i) {
@@ -380,6 +377,7 @@ OB_DEF_DESERIALIZE(ObJsonTableSpec)
   OB_UNIS_DECODE(has_correlated_expr_);
   
   int32_t column_count = 0;
+  int8_t table_type_flag = OB_JSON_TABLE;
   OB_UNIS_DECODE(column_count);
   
   if (OB_SUCC(ret) && OB_FAIL(cols_def_.init(column_count))) {
@@ -395,15 +393,15 @@ OB_DEF_DESERIALIZE(ObJsonTableSpec)
       OB_UNIS_DECODE(tmp_col_info);
       *col_info = tmp_col_info;
       if (OB_FAIL(cols_def_.push_back(col_info))) {
+      } else if (col_info->col_type_ == COL_TYPE_UNNEST) {
+        table_type_flag = OB_UNNEST_TABLE;
       }
     }
   }
 
   if (OB_FAIL(ret)) {
-  } else {
+  } else if (table_type_flag == OB_UNNEST_TABLE) {
     OB_UNIS_DECODE(table_type_);
-  }
-  if (OB_SUCC(ret) && table_type_ == OB_UNNEST_TABLE_TYPE) {
     int32_t value_exprs_count = 0;
     OB_UNIS_DECODE(value_exprs_count);
     if (OB_FAIL(ret)) {
@@ -585,10 +583,6 @@ int ObJsonTableOp::generate_column_trees(JtColTreeNode*& root)
 
 int ObJsonTableOp::inner_open()
 {
-  if (MY_SPEC.table_type_ == OB_FILE_TABLE_TYPE) {
-    file_scan_ = new (std::nothrow) FileSqlScan(MY_SPEC, ctx_, eval_ctx_);
-    return file_scan_ == nullptr ? OB_ALLOCATE_MEMORY_FAILED : file_scan_->open();
-  }
   INIT_SUCC(ret);
   if (OB_FAIL(init())) {
   } else if (MY_SPEC.value_exprs_.empty()) {
@@ -605,8 +599,6 @@ int ObJsonTableOp::inner_rescan()
 {
   int ret = OB_SUCCESS;
   if (OB_FAIL(ObOperator::inner_rescan())) {
-  } else if (MY_SPEC.table_type_ == OB_FILE_TABLE_TYPE) {
-    return file_scan_ == nullptr ? OB_NOT_INIT : file_scan_->rescan();
   } else {
     jt_ctx_.row_alloc_.reuse();
   }
@@ -692,8 +684,6 @@ int ObJsonTableOp::init()
 
 int ObJsonTableOp::inner_close()
 {
-  delete file_scan_;
-  file_scan_ = nullptr;
   INIT_SUCC(ret);
   if (OB_NOT_NULL(root_)) {
     if (OB_FAIL(root_->reset(&jt_ctx_))) {
@@ -732,8 +722,6 @@ void ScanNode::reset_reg_columns(JtScanCtx* ctx)
 
 void ObJsonTableOp::destroy()
 {
-  delete file_scan_;
-  file_scan_ = nullptr;
   ObOperator::destroy();
 }
 
@@ -1409,32 +1397,9 @@ int UnionNode::get_next_row(void* in, JtScanCtx* ctx, bool& is_null_value)
   return ret;
 }
 
-int ObJsonTableOp::inner_get_next_batch(int64_t max_row_cnt)
-{
-  if (file_scan_ == nullptr) { return OB_NOT_INIT; }
-  int ret = OB_SUCCESS;
-  clear_evaluated_flag();
-  file_scan_->begin_batch();
-  ObEvalCtx::BatchInfoScopeGuard guard(eval_ctx_);
-  guard.set_batch_size(max_row_cnt);
-  brs_.size_ = 0;
-  brs_.end_ = false;
-  for (int64_t i = 0; OB_SUCC(ret) && i < max_row_cnt && !file_scan_->batch_full(); ++i) {
-    guard.set_batch_idx(i);
-    ret = file_scan_->next(false);
-    if (ret == OB_ITER_END) { ret = OB_SUCCESS; brs_.end_ = true; break; }
-    if (OB_SUCC(ret)) { ++brs_.size_; }
-  }
-  return ret;
-}
-
 // json/xml table function inner
 int ObJsonTableOp::inner_get_next_row()
 {
-  if (MY_SPEC.table_type_ == OB_FILE_TABLE_TYPE) {
-    clear_evaluated_flag();
-    return file_scan_ == nullptr ? OB_NOT_INIT : file_scan_->next();
-  }
   INIT_SUCC(ret);
   bool is_root_null = false;
   if (!(jt_ctx_.is_json_table_func()

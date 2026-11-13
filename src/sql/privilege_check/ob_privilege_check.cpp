@@ -310,9 +310,7 @@ int get_dml_stmt_need_privs(
         if (stmt::T_SELECT == stmt_type) {
           priv_set = OB_PRIV_SELECT;
           op_literal = ObString::make_string("SELECT");
-          const auto *select = static_cast<const ObSelectStmt*>(basic_stmt);
-          if (select->is_select_into_outfile() || (select->has_select_into()
-              && select->get_select_into()->into_type_ == T_INTO_COPY)) {
+          if (static_cast<const ObSelectStmt*>(basic_stmt)->is_select_into_outfile()) {
             ObNeedPriv need_priv;
             need_priv.priv_set_ = OB_PRIV_FILE;
             need_priv.priv_level_ = OB_PRIV_USER_LEVEL;

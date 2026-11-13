@@ -395,25 +395,7 @@ int ObShowResolver::resolve(const ParseNode &parse_tree)
                */
               bool is_full = (1 == ((parse_tree.children_[0]->value_)&1));
               bool is_extended = (1 == (((parse_tree.children_[0]->value_)>>1)&1));
-              if (parse_tree.children_[0]->value_ == 4) {
-                bool allow = false;
-                ObSqlString ai_sql;
-                if (OB_FAIL(schema_checker_->get_schema_guard()->check_table_show(session_priv,
-                            enable_role_id_array, show_db_name, show_table_name, allow))) {
-                } else if (!allow) {
-                  ret = OB_ERR_NO_TABLE_PRIVILEGE;
-                  LOG_USER_ERROR(OB_ERR_NO_TABLE_PRIVILEGE, 4, "SHOW",
-                      session_priv.user_name_.length(), session_priv.user_name_.ptr(),
-                      session_priv.host_name_.length(), session_priv.host_name_.ptr(),
-                      show_table_name.length(), show_table_name.ptr());
-                } else if (OB_FAIL(ai_sql.append_fmt(
-                    "SELECT column_name AS `Field`, normalized_expr AS `Expression`, model_name AS `Model`, "
-                    "function_kind AS `Function`, sync_mode AS `Sync_mode`, max_retries AS `Max_retries`, "
-                    "dependency_columns AS `Dependencies`, definition_version AS `Definition_version` "
-                    "FROM oceanbase.__all_ai_column WHERE table_id=%lu ORDER BY column_id", show_table_id))) {
-                } else if (OB_FAIL(ob_write_string(*allocator_, ai_sql.string(), select_sql))) {
-                }
-              } else if (OB_UNLIKELY(((parse_tree.children_[0]->value_)>>2) != 0)) {
+              if (OB_UNLIKELY(((parse_tree.children_[0]->value_)>>2) != 0)) {
                 ret = OB_ERR_UNEXPECTED;
               } else if (is_full) {
                 if (is_extended) {

@@ -2119,23 +2119,6 @@ int ObDmlCgService::generate_dml_base_ctdef(ObLogicalOperator &op,
     }
   }
 
-  if (OB_SUCC(ret) && index_dml_info.is_primary_index_) {
-    const ObTableSchema *table = nullptr;
-    if (OB_FAIL(cg_.opt_ctx_->get_schema_guard()->get_table_schema(index_dml_info.ref_table_id_, table))) {
-    } else if (table == nullptr) {
-      ret = OB_SCHEMA_ERROR;
-    } else {
-      for (auto column = table->column_begin(); column != table->column_end(); ++column) {
-        if ((*column)->is_ai_column() && !(*column)->is_unused()) {
-          dml_base_ctdef.has_ai_column_ = true;
-          cg_.phy_plan_->set_has_nested_sql(true);
-          cg_.phy_plan_->set_need_serial_exec(true);
-          break;
-        }
-      }
-    }
-  }
-
   if (OB_SUCC(ret) &&
       log_op_def::LOG_INSERT == op.get_type()) {
     ObLogInsert &log_ins_op = static_cast<ObLogInsert &>(op);
@@ -2187,11 +2170,7 @@ int ObDmlCgService::convert_triggers(ObLogDelUpd &log_op,
                                      uint64_t dml_event)
 {
   int ret = OB_SUCCESS;
-  const auto *session = cg_.opt_ctx_->get_session_info();
-  if (session != nullptr && (session->is_ai_column_internal_write()
-                            || session->get_ai_column_retry_id(dml_info.ref_table_id_) != 0)) {
-    // Derived-column maintenance does not represent another business row event.
-  } else if (OB_FAIL(convert_normal_triggers(log_op, dml_info, dml_ctdef, dml_event))) {
+  if (OB_FAIL(convert_normal_triggers(log_op, dml_info, dml_ctdef, dml_event))) {
   }
   return ret;
 }

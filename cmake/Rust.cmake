@@ -68,7 +68,6 @@ file(READ "${RUST_WORKSPACE_DIR}/exports.json" _rust_exports)
 string(JSON _rust_export_count LENGTH "${_rust_exports}")
 math(EXPR _rust_export_last "${_rust_export_count} - 1")
 set(_rust_outputs)
-set(_rust_header_outputs)
 set(_rust_names)
 foreach(_index RANGE ${_rust_export_last})
   string(JSON _name MEMBER "${_rust_exports}" ${_index})
@@ -84,12 +83,11 @@ foreach(_index RANGE ${_rust_export_last})
     math(EXPR _header_last "${_header_count} - 1")
     foreach(_header_index RANGE ${_header_last})
       string(JSON _header MEMBER "${_rust_exports}" "${_name}" headers ${_header_index})
-      list(APPEND _rust_header_outputs "${_rust_export_dir}/include/${_header}")
+      list(APPEND _rust_outputs "${_rust_export_dir}/include/${_header}")
     endforeach()
   endif()
 endforeach()
 list(REMOVE_DUPLICATES _rust_outputs)
-list(REMOVE_DUPLICATES _rust_header_outputs)
 
 # Reinvoke Cargo when any workspace crate's source or build input changes.
 # Discover crates through their manifests so rust/target is never scanned.
@@ -193,9 +191,6 @@ endif()
 
 add_custom_command(
   OUTPUT ${_rust_outputs}
-  # Make touches secondary OUTPUTs when the primary archive is rebuilt. Keep
-  # headers as byproducts so build.py can preserve unchanged bridge mtimes.
-  BYPRODUCTS ${_rust_header_outputs}
   COMMAND "${CMAKE_COMMAND}" -E env ${_rust_build_env}
           "${Python3_EXECUTABLE}" "${RUST_WORKSPACE_DIR}/build.py"
           --cargo "${CARGO}" --profile "${_cargo_out_subdir}" ${_cargo_target_args}
