@@ -219,16 +219,23 @@ int ObExprTokenize::parse_param(const ObExpr &expr,
 int ObExprTokenize::construct_ft_parser_inner_name(const ObString &input_str, TokenizeParam &param)
 {
   int ret = OB_SUCCESS;
-  storage::ObFTParser parser;
-
   char *parser_name_buf = nullptr;
   if (OB_ISNULL(parser_name_buf
                 = static_cast<char *>(param.allocator_.alloc(storage::OB_FT_PARSER_NAME_LENGTH)))) {
     ret = OB_ALLOCATE_MEMORY_FAILED;
-  } else if (OB_FAIL(parser.init(input_str))) {
-  } else if (OB_FAIL(parser.serialize_to_str(parser_name_buf, storage::OB_FT_PARSER_NAME_LENGTH))) {
-  } else {
+  } else if (0 == input_str.case_compare("ik")) {
+    MEMCPY(parser_name_buf, "ik.1", 5);
     param.parser_name_ = ObString::make_string(parser_name_buf);
+  } else if (0 == input_str.case_compare("beng")) {
+    MEMCPY(parser_name_buf, "beng.1", 7);
+    param.parser_name_ = ObString::make_string(parser_name_buf);
+  } else {
+    storage::ObFTParser parser;
+    if (OB_FAIL(parser.init(input_str))) {
+    } else if (OB_FAIL(parser.serialize_to_str(parser_name_buf, storage::OB_FT_PARSER_NAME_LENGTH))) {
+    } else {
+      param.parser_name_ = ObString::make_string(parser_name_buf);
+    }
   }
   return ret;
 }

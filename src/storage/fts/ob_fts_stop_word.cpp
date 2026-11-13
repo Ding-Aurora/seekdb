@@ -74,33 +74,47 @@ void ObStopWordChecker::destroy()
 int ObStopWordChecker::check_stopword(const ObFTWord &word, bool &is_stopword)
 {
   int ret = OB_SUCCESS;
-  const auto lookup = [&](const common::ObString &text) -> int {
-    ObFTWord converted(text.length(), text.ptr(), stopword_type_);
-    const int status = stopword_set_.exist_refactored(converted);
-    if (status == OB_HASH_NOT_EXIST || status == OB_HASH_EXIST) {
-      is_stopword = status == OB_HASH_EXIST;
-      return OB_SUCCESS;
-    }
-    return status == OB_SUCCESS ? OB_ERR_UNEXPECTED : status;
-  };
+  is_stopword = false;
   if (OB_UNLIKELY(!inited_)) {
     ret = OB_NOT_INIT;
   } else if (OB_UNLIKELY(word.empty())) {
     ret = OB_INVALID_ARGUMENT;
-  } else if (ObCharset::charset_type_by_coll(word.get_collation_type()) == CHARSET_UTF8MB4) {
-    // The stopword dictionary is UTF-8. Only its collation changes here.
-    ret = lookup(word.get_word().get_string());
   } else {
-    common::ObArenaAllocator allocator(lib::ObMemAttr("ChkStopWord"));
-    common::ObString cmp_str;
-    if (OB_FAIL(common::ObCharset::charset_convert(
-                                       allocator,
-                                       word.get_word().get_string(),
-                                       word.get_collation_type(),
-                                       stopword_type_.get_collation_type(),
-                                       cmp_str))) {
+    const ObString text = word.get_word().get_string();
+    const int32_t len = text.length();
+    if (len < 1 || len > 5) {
+      is_stopword = false;
     } else {
-      ret = lookup(cmp_str);
+      const unsigned char first = static_cast<unsigned char>(text.ptr()[0]);
+      if (first >= 0x80 || first < 'a' || first > 'w') {
+        is_stopword = false;
+      } else {
+        const auto lookup = [&](const common::ObString &lookup_text) -> int {
+          ObFTWord converted(lookup_text.length(), lookup_text.ptr(), stopword_type_);
+          const int status = stopword_set_.exist_refactored(converted);
+          if (status == OB_HASH_NOT_EXIST || status == OB_HASH_EXIST) {
+            is_stopword = (status == OB_HASH_EXIST);
+            return OB_SUCCESS;
+          }
+          return status == OB_SUCCESS ? OB_ERR_UNEXPECTED : status;
+        };
+        if (ObCharset::charset_type_by_coll(word.get_collation_type()) == CHARSET_UTF8MB4) {
+          // The stopword dictionary is UTF-8. Only its collation changes here.
+          ret = lookup(text);
+        } else {
+          common::ObArenaAllocator allocator(lib::ObMemAttr("ChkStopWord"));
+          common::ObString cmp_str;
+          if (OB_FAIL(common::ObCharset::charset_convert(
+                                             allocator,
+                                             text,
+                                             word.get_collation_type(),
+                                             stopword_type_.get_collation_type(),
+                                             cmp_str))) {
+          } else {
+            ret = lookup(cmp_str);
+          }
+        }
+      }
     }
   }
   return ret;
@@ -162,15 +176,28 @@ int ObAddWord::casedown_word(const ObFTWord &src, ObFTWord &dst)
   if (OB_UNLIKELY(src.empty())) {
     ret = OB_INVALID_ARGUMENT;
   } else if (flag_.casedown()) {
-    ObString dst_str;
-    if (OB_FAIL(ObCharset::tolower(
-                    word_meta_.get_collation_type(),
-                    src.get_word().get_string(),
-                    dst_str,
-                    allocator_))) {
+    const ObString src_str = src.get_word().get_string();
+    bool has_upper = false;
+    for (int64_t i = 0; i < src_str.length(); ++i) {
+      const char c = src_str.ptr()[i];
+      if (c >= 'A' && c <= 'Z') {
+        has_upper = true;
+        break;
+      }
+    }
+    if (!has_upper) {
+      dst = src;
     } else {
-      ObFTWord tmp(dst_str.length(), dst_str.ptr(), word_meta_);
-      dst = tmp;
+      ObString dst_str;
+      if (OB_FAIL(ObCharset::tolower(
+                      word_meta_.get_collation_type(),
+                      src_str,
+                      dst_str,
+                      allocator_))) {
+      } else {
+        ObFTWord tmp(dst_str.length(), dst_str.ptr(), word_meta_);
+        dst = tmp;
+      }
     }
   } else {
     dst = src;

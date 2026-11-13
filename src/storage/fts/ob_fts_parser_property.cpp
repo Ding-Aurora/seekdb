@@ -1018,42 +1018,44 @@ int ObFTParserProperty::parse_for_parser_helper(const ObFTParser &parser, const 
   int ret = OB_SUCCESS;
   if (json_str.empty()) {
     *this = ObFTParserProperty();
-  }
-  if (parser.is_ik()) {
-    dict_table_ = ObString(ObFTSLiteral::CONFIG_NAME_DICT_TABLE);
-    stopword_table_ = ObString(ObFTSLiteral::CONFIG_NAME_STOPWORD_TABLE);
-    quantifier_table_ = ObString(ObFTSLiteral::CONFIG_NAME_QUANTIFIER_TABLE);
-  }
-  // The constructor already supplies the same defaults as DDL property expansion.
-  if (json_str.empty()) {
-    return ret;
-  }
-  ObFTParserJsonProps props;
-  if (OB_FAIL(props.init())) {
-  } else if (OB_FAIL(props.parse_from_valid_str(json_str))) {
+    if (parser.is_ik()) {
+      dict_table_ = ObString(ObFTSLiteral::CONFIG_NAME_DICT_TABLE);
+      stopword_table_ = ObString(ObFTSLiteral::CONFIG_NAME_STOPWORD_TABLE);
+      quantifier_table_ = ObString(ObFTSLiteral::CONFIG_NAME_QUANTIFIER_TABLE);
+    }
   } else {
     if (parser.is_ik()) {
-      ObString ik_smart;
-      if (OB_FAIL(props.config_get_ik_mode(ik_smart))) {
-      } else {
-        if (0 == ik_smart.case_compare(ObString(ObFTSLiteral::FT_IK_MODE_SMART))) {
-          ik_mode_smart_ = true;
-        } else if (0 == ik_smart.case_compare(ObString(ObFTSLiteral::FT_IK_MODE_MAX_WORD))) {
-          ik_mode_smart_ = false;
+      dict_table_ = ObString(ObFTSLiteral::CONFIG_NAME_DICT_TABLE);
+      stopword_table_ = ObString(ObFTSLiteral::CONFIG_NAME_STOPWORD_TABLE);
+      quantifier_table_ = ObString(ObFTSLiteral::CONFIG_NAME_QUANTIFIER_TABLE);
+    }
+    ObFTParserJsonProps props;
+    if (OB_FAIL(props.init())) {
+    } else if (OB_FAIL(props.parse_from_valid_str(json_str))) {
+    } else {
+      if (parser.is_ik()) {
+        ObString ik_smart;
+        if (OB_FAIL(props.config_get_ik_mode(ik_smart))) {
         } else {
-          ret = OB_INVALID_ARGUMENT;
+          if (0 == ik_smart.case_compare(ObString(ObFTSLiteral::FT_IK_MODE_SMART))) {
+            ik_mode_smart_ = true;
+          } else if (0 == ik_smart.case_compare(ObString(ObFTSLiteral::FT_IK_MODE_MAX_WORD))) {
+            ik_mode_smart_ = false;
+          } else {
+            ret = OB_INVALID_ARGUMENT;
+          }
         }
-      }
-    } else if (parser.is_space() || parser.is_beng()) {
-      if (OB_FAIL(props.config_get_min_token_size(min_token_size_))) {
-      } else if (OB_FAIL(props.config_get_max_token_size(max_token_size_))) {
-      }
-    } else if (parser.is_ngram()) {
-      if (OB_FAIL(props.config_get_ngram_token_size(ngram_token_size_))) {
-      }
-    } else if (parser.is_ngram2()) {
-      if (OB_FAIL(props.config_get_min_ngram_token_size(min_ngram_token_size_))) {
-      } else if (OB_FAIL(props.config_get_max_ngram_token_size(max_ngram_token_size_))) {
+      } else if (parser.is_space() || parser.is_beng()) {
+        if (OB_FAIL(props.config_get_min_token_size(min_token_size_))) {
+        } else if (OB_FAIL(props.config_get_max_token_size(max_token_size_))) {
+        }
+      } else if (parser.is_ngram()) {
+        if (OB_FAIL(props.config_get_ngram_token_size(ngram_token_size_))) {
+        }
+      } else if (parser.is_ngram2()) {
+        if (OB_FAIL(props.config_get_min_ngram_token_size(min_ngram_token_size_))) {
+        } else if (OB_FAIL(props.config_get_max_ngram_token_size(max_ngram_token_size_))) {
+        }
       }
     }
   }

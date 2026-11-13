@@ -99,6 +99,7 @@ private:
   const ObFixedArray<ObDocIdExt, ObIAllocator> *iter_ids_;
   const common::ObDatumAccessContext *datum_access_ctx_;
   bool is_inited_;
+  bool is_integer_type_;
 };
 
 typedef common::ObLoserTree<ObDASMatchMergeItem, ObDASMatchMergeCmp>

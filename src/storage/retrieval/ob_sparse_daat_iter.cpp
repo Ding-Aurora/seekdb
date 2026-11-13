@@ -26,7 +26,8 @@ namespace storage
 ObSRMergeCmp::ObSRMergeCmp()
   : cmp_func_(nullptr),
     iter_ids_(nullptr),
-    is_inited_(false)
+    is_inited_(false),
+    is_integer_type_(false)
 {
 }
 
@@ -44,6 +45,7 @@ int ObSRMergeCmp::init(
     if (OB_ISNULL(cmp_func_)) {
       ret = OB_ERR_UNEXPECTED;
     } else {
+      is_integer_type_ = (id_meta.type_ == common::ObUInt64Type || id_meta.type_ == common::ObIntType);
       is_inited_ = true;
     }
   }
@@ -58,6 +60,10 @@ int ObSRMergeCmp::cmp(
   int ret = OB_SUCCESS;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
+  } else if (is_integer_type_) {
+    const uint64_t lv = get_id_datum(l.iter_idx_).get_uint();
+    const uint64_t rv = get_id_datum(r.iter_idx_).get_uint();
+    cmp_ret = (lv > rv) - (lv < rv);
   } else {
     int tmp_ret = 0;
     if (OB_FAIL(cmp_func_(

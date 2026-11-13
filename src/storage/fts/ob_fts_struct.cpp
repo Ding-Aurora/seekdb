@@ -28,13 +28,17 @@ namespace storage
 int ObFTWord::hash(uint64_t &hash_val) const
 {
   int ret = OB_SUCCESS;
-  common::ObDatumBasicFuncs *funcs = ObDatumFuncs::get_basic_func(meta_.get_type(), meta_.get_collation_type());
-  if (OB_ISNULL(funcs)) {
-    ret = OB_ERR_UNEXPECTED;
-  } else if (funcs->default_hash_ == nullptr) {
-    ret = OB_ERR_UNEXPECTED;
+  if (meta_.get_collation_type() == CS_TYPE_UTF8MB4_BIN) {
+    hash_val = word_.get_string().hash();
   } else {
-    ret = funcs->default_hash_(word_, 0, hash_val, nullptr);
+    common::ObDatumBasicFuncs *funcs = ObDatumFuncs::get_basic_func(meta_.get_type(), meta_.get_collation_type());
+    if (OB_ISNULL(funcs)) {
+      ret = OB_ERR_UNEXPECTED;
+    } else if (funcs->default_hash_ == nullptr) {
+      ret = OB_ERR_UNEXPECTED;
+    } else {
+      ret = funcs->default_hash_(word_, 0, hash_val, nullptr);
+    }
   }
   return ret;
 }
@@ -43,13 +47,20 @@ bool ObFTWord::operator==(const ObFTWord &other) const
   bool is_equal = false;
   int ret = OB_SUCCESS;
   int cmp_ret = 0;
-  ObDatumCmpFuncType func = get_datum_cmp_func(meta_, other.meta_);
-  if (func == nullptr) {
-    ob_abort();
-  } else if (OB_FAIL(func(word_, other.word_, cmp_ret, nullptr))) {
-    ob_abort();
+  if (meta_.get_collation_type() == other.meta_.get_collation_type()
+      && meta_.get_collation_type() == CS_TYPE_UTF8MB4_BIN) {
+    if (word_.len_ == other.word_.len_) {
+      is_equal = (word_.len_ == 0 || 0 == memcmp(word_.ptr_, other.word_.ptr_, word_.len_));
+    }
   } else {
-    is_equal = (cmp_ret == 0);
+    ObDatumCmpFuncType func = get_datum_cmp_func(meta_, other.meta_);
+    if (func == nullptr) {
+      ob_abort();
+    } else if (OB_FAIL(func(word_, other.word_, cmp_ret, nullptr))) {
+      ob_abort();
+    } else {
+      is_equal = (cmp_ret == 0);
+    }
   }
   return is_equal;
 }

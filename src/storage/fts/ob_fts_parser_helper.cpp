@@ -71,6 +71,16 @@ int ObFTParser::parse_from_str(const char *parser_name, const int64_t buf_len)
     ret = OB_INVALID_ARGUMENT;
   } else if (OB_UNLIKELY(buf_len >= OB_FT_PARSER_NAME_LENGTH)) {
     ret = OB_INVALID_ARGUMENT;
+  } else if (buf_len == 4 && 0 == memcmp(parser_name, "ik.1", 4)) {
+    if (OB_FAIL(parser_name_.set_name("ik"))) {
+    } else {
+      parser_version_ = BUILTIN_VERSION;
+    }
+  } else if (buf_len == 6 && 0 == memcmp(parser_name, "beng.1", 6)) {
+    if (OB_FAIL(parser_name_.set_name("beng"))) {
+    } else {
+      parser_version_ = BUILTIN_VERSION;
+    }
   } else {
     char name[OB_FT_PARSER_NAME_LENGTH];
     char *saveptr = nullptr;
