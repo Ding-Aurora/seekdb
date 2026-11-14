@@ -27,9 +27,29 @@ int main(int argc, char **argv)
     index = seekdb_cuvs_deserialize(argv[2], count, dimension);
     if (!index) return 4;
   }
-  unsigned int ids[10];
-  float distances[10];
+  unsigned int ids[100];
+  float distances[100];
   int result = seekdb_cuvs_search(index, vectors.data(), 1, 10, ids, distances);
+  unsigned int first_ids[10];
+  float first_distances[10];
+  std::memcpy(first_ids, ids, sizeof(first_ids));
+  std::memcpy(first_distances, distances, sizeof(first_distances));
+  if (result == 0) {
+    for (int round = 0; round < 20 && result == 0; ++round) {
+      result = seekdb_cuvs_search(index, vectors.data(), 1, 100, ids, distances);
+      if (result == 0) {
+        for (int i = 0; i < 100; ++i) {
+          if (ids[i] >= count || !std::isfinite(distances[i])) result = 8;
+          for (int j = 0; j < i; ++j) {
+            if (ids[j] == ids[i]) result = 8;
+          }
+        }
+      }
+      if (result == 0) result = seekdb_cuvs_search(index, vectors.data(), 1, 10, ids, distances);
+      if (result == 0 && (std::memcmp(first_ids, ids, sizeof(first_ids)) != 0 ||
+                          std::memcmp(first_distances, distances, sizeof(first_distances)) != 0)) result = 9;
+    }
+  }
   seekdb_cuvs_free(index);
   if (result != 0 || ids[0] != 0 || std::fabs(distances[0]) > 0.0001f) return 5;
   std::printf("%s: n=%ld top1=%u distance=%g\n", argv[1], count, ids[0], distances[0]);
