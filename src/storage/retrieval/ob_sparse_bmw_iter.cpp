@@ -563,24 +563,24 @@ int ObSRBMWIterImpl::project_rows_from_top_k_heap(const int64_t capacity, int64_
       relevance_evaluated_flags = &relevance_proj_expr->get_evaluated_flags(*eval_ctx);
     }
 
-    ObEvalCtx::BatchInfoScopeGuard guard(*eval_ctx);
     count = 0;
     for (int64_t i = 0; OB_SUCC(ret) && i < capacity && !top_k_heap_.empty(); ++i) {
-      guard.set_batch_idx(i);
       const TopKItem &top_k_item = top_k_heap_.top();
       const ObDocIdExt &id = id_cache_.at(top_k_item.cache_idx_);
       set_datum_func_(id_datums[i], id);
       id_evaluated_flags.set(i);
-      id_proj_expr->set_evaluated_projected(*eval_ctx);
 
       if (iter_param_->need_project_relevance()) {
         relevance_datums[i].set_double(top_k_item.relevance_);
         relevance_evaluated_flags->set(i);
-        relevance_proj_expr->set_evaluated_projected(*eval_ctx);
       }
       ++count;
       if (OB_FAIL(top_k_heap_.pop())) {
       }
+    }
+    id_proj_expr->set_evaluated_projected(*eval_ctx);
+    if (iter_param_->need_project_relevance()) {
+      relevance_proj_expr->set_evaluated_projected(*eval_ctx);
     }
   }
   return ret;
