@@ -290,12 +290,12 @@ inline int ObFTCharUtil::do_classify(const char *input, const uint8_t char_len, 
   type = CharType::USELESS;
   constexpr bool utf16 = CS_TYPE == CHARSET_UTF16 || CS_TYPE == CHARSET_UTF16LE;
   if (OB_FAIL(decode_unicode<CS_TYPE>(input, char_len, unicode))) {
+  } else if (ObUnicodeBlockUtils::is_chinese(unicode)) {
+    type = CharType::CHINESE;
   } else if (ObUnicodeBlockUtils::is_alpha(unicode)) {
     type = CharType::ENGLISH_LETTER;
   } else if (ObUnicodeBlockUtils::is_arabic(unicode)) {
     type = CharType::ARABIC_LETTER;
-  } else if (ObUnicodeBlockUtils::is_chinese(unicode)) {
-    type = CharType::CHINESE;
   } else if (ObUnicodeBlockUtils::is_other_cjk(unicode)) {
     type = CharType::OTHER_CJK;
   } else if (utf16 && ObUnicodeBlockUtils::check_high_surrogate(unicode)) {

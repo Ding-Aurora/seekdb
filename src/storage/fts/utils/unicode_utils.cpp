@@ -101,12 +101,9 @@ bool ObUnicodeBlockUtils::check_ignore_as_single(const ob_wc_t unicode)
 
 bool ObUnicodeBlockUtils::is_chinese(const ob_wc_t unicode)
 {
-  // variables name keep same with it's code block name, skip code style.
-  bool CJK_UNIFIED_IDEOGRAPHS = (unicode >= 0x4E00 && unicode <= 0x9FFF);
-  bool CJK_COMPATIBILITY_IDEOGRAPHS = (unicode >= 0xF900 && unicode <= 0xFAFF);
-  bool CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A = (unicode >= 0x3400 && unicode <= 0x4DBF);
-  return CJK_UNIFIED_IDEOGRAPHS || CJK_COMPATIBILITY_IDEOGRAPHS
-         || CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A;
+  return (unicode >= 0x4E00 && unicode <= 0x9FFF)
+         || (unicode >= 0x3400 && unicode <= 0x4DBF)
+         || (unicode >= 0xF900 && unicode <= 0xFAFF);
 }
 
 bool ObUnicodeBlockUtils::is_other_cjk(const ob_wc_t unicode)
