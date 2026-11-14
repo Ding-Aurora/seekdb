@@ -501,7 +501,6 @@ int ObTextRetrievalDaaTTokenIter::save_relevances_and_docids()
   int ret = OB_SUCCESS;
   if (OB_ISNULL(relevance_expr_) || OB_ISNULL(inv_scan_domain_id_col_)) {
     ret = OB_INVALID_ARGUMENT;
-  } else if (OB_FAIL(relevance_expr_->eval_batch(*eval_ctx_, *token_iter_->get_skip(), count_))) {
   } else {
     cur_idx_ = 0;
     const ObDatumVector &relevance_datum = relevance_expr_->locate_expr_datumvector(*eval_ctx_);

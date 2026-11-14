@@ -124,6 +124,7 @@ int ObExprBM25::eval_batch_bm25_relevance_expr(const ObExpr &expr, ObEvalCtx &ct
     const int64_t total_doc_cnt = total_doc_cnt_datum.at(0)->get_int();
     const double token_weight = token_weight_datum.at(0)->get_double();
     const double avg_doc_token_cnt = avg_doc_token_cnt_datum.at(0)->get_double();
+    const double inv_avg_doc_token_cnt = (avg_doc_token_cnt > 0.0) ? (1.0 / avg_doc_token_cnt) : 0.0;
     ObDatum *res_datum = expr.locate_batch_datums(ctx);
     ObBitVector &eval_flags = expr.get_evaluated_flags(ctx);
     for (int64_t i = 0; OB_SUCC(ret) && i < size; ++i) {
@@ -132,7 +133,7 @@ int ObExprBM25::eval_batch_bm25_relevance_expr(const ObExpr &expr, ObEvalCtx &ct
       } else if (!skip.contain(i) && !eval_flags.at(i)) {
         const int64_t related_token_cnt = related_token_cnt_datum.at(i)->get_uint();
         const uint64_t doc_token_cnt = doc_length_datum.at(i)->get_uint();
-        const double norm_len = doc_token_cnt / avg_doc_token_cnt;
+        const double norm_len = static_cast<double>(doc_token_cnt) * inv_avg_doc_token_cnt;
         const double doc_weight = doc_token_weight(related_token_cnt, norm_len);
         const double relevance = token_weight * doc_weight;
         res_datum[i].set_double(relevance);
