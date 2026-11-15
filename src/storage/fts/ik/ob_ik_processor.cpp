@@ -114,6 +114,34 @@ int TokenizeContext::prepare_next_char()
       } else {
         next_char_type_ = ObFTCharUtil::CharType::USELESS;
       }
+    } else if ((c0 & 0xF0) == 0xE0 && cursor_ + 2 < fulltext_len_) {
+      const unsigned char c1 = static_cast<unsigned char>(fulltext_[cursor_ + 1]);
+      const unsigned char c2 = static_cast<unsigned char>(fulltext_[cursor_ + 2]);
+      if ((c1 & 0xC0) == 0x80 && (c2 & 0xC0) == 0x80) {
+        const ob_wc_t unicode = ((static_cast<ob_wc_t>(c0 & 0x0F)) << 12) | ((static_cast<ob_wc_t>(c1 & 0x3F)) << 6) | (static_cast<ob_wc_t>(c2 & 0x3F));
+        next_char_len_ = 3;
+        if (ObUnicodeBlockUtils::is_chinese(unicode)) {
+          next_char_type_ = ObFTCharUtil::CharType::CHINESE;
+        } else if (ObUnicodeBlockUtils::is_other_cjk(unicode)) {
+          next_char_type_ = ObFTCharUtil::CharType::OTHER_CJK;
+        } else if (ObUnicodeBlockUtils::is_alpha(unicode)) {
+          next_char_type_ = ObFTCharUtil::CharType::ENGLISH_LETTER;
+        } else if (ObUnicodeBlockUtils::is_arabic(unicode)) {
+          next_char_type_ = ObFTCharUtil::CharType::ARABIC_LETTER;
+        } else {
+          next_char_type_ = ObFTCharUtil::CharType::USELESS;
+        }
+      } else {
+        if (OB_FAIL(ObCharset::first_valid_char(coll_type_,
+                                                fulltext_ + cursor_,
+                                                fulltext_len_ - cursor_,
+                                                next_char_len_))) {
+        } else if (OB_FAIL(ObFTCharUtil::classify_first_char(coll_type_,
+                                                             fulltext_ + cursor_,
+                                                             next_char_len_,
+                                                             next_char_type_))) {
+        }
+      }
     } else {
       if (OB_FAIL(ObCharset::first_valid_char(coll_type_,
                                               fulltext_ + cursor_,

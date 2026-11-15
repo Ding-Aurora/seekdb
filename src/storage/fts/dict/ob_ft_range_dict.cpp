@@ -382,17 +382,22 @@ int ObFTRangeDict::match_with_hit(const ObString &single_word,
 int ObFTRangeDict::find_first_char_range(const ObString &single_word, ObIFTDict *&dict) const
 {
   int ret = OB_SUCCESS;
-  bool found = false;
-  for (int64_t i = 0; !found && i < range_dicts_.count(); ++i) {
-    const ObFTRange &range = range_dicts_.at(i);
-    if (range.start_.get_word().compare(single_word) <= 0
-        && range.end_.get_word().compare(single_word) >= 0) {
+  dict = nullptr;
+  int64_t low = 0;
+  int64_t high = range_dicts_.count() - 1;
+  while (low <= high) {
+    const int64_t mid = low + ((high - low) >> 1);
+    const ObFTRange &range = range_dicts_.at(mid);
+    if (range.end_.get_word().compare(single_word) < 0) {
+      low = mid + 1;
+    } else if (range.start_.get_word().compare(single_word) > 0) {
+      high = mid - 1;
+    } else {
       dict = range.dict_;
-      found = true;
+      break;
     }
   }
-  if (!found) {
-    // not found, dis match
+  if (OB_ISNULL(dict)) {
     ret = OB_ENTRY_NOT_EXIST;
   }
   return ret;

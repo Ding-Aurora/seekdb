@@ -624,22 +624,21 @@ int ObDASMatchIter::project_results(const int64_t count)
     if (set_datum_func_ == set_doc_id_int) {
       for (int64_t i = 0; i < count; ++i) {
         id_datums[i].set_int(buffered_domain_ids_[i].get_datum().get_int());
-        id_evaluated_flags.set(i);
       }
     } else {
       for (int64_t i = 0; i < count; ++i) {
         set_datum_func_(id_datums[i], buffered_domain_ids_[i]);
-        id_evaluated_flags.set(i);
       }
     }
+    id_evaluated_flags.set_all(count);
     id_proj_expr->set_evaluated_projected(*eval_ctx);
     if (need_project_relevance) {
       ObDatum *relevance_datums = relevance_proj_expr->locate_batch_datums(*eval_ctx);
       sql::ObBitVector &relevance_evaluated_flags = relevance_proj_expr->get_evaluated_flags(*eval_ctx);
       for (int64_t i = 0; i < count; ++i) {
         relevance_datums[i].set_double(buffered_relevances_[i]);
-        relevance_evaluated_flags.set(i);
       }
+      relevance_evaluated_flags.set_all(count);
       relevance_proj_expr->set_evaluated_projected(*eval_ctx);
       for (int64_t j = 1; is_match_score_iter() && j < children_relevance_exprs_.count(); ++j) {
         // TODO: trick. just use one expr to project, the other exprs is filled with 0.
@@ -647,8 +646,8 @@ int ObDASMatchIter::project_results(const int64_t count)
         sql::ObBitVector &tmp_flags = children_relevance_exprs_.at(j)->get_evaluated_flags(*eval_ctx);
         for (int64_t i = 0; i < count; ++i) {
           tmp_datums[i].set_double(0);
-          tmp_flags.set(i);
         }
+        tmp_flags.set_all(count);
         children_relevance_exprs_.at(j)->set_evaluated_projected(*eval_ctx);
       }
     }
