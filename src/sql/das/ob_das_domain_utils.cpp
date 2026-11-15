@@ -313,23 +313,26 @@ int ObDASDomainUtils::build_ft_doc_word_infos(
     const int64_t word_cnt_idx = 2;
     const int64_t doc_len_idx = 3;
     rows = new (rows_buf) blocksstable::ObDatumRow[ft_word_map.size()];
-    for (ObFTWordMap::const_iterator iter = ft_word_map.begin();
-         OB_SUCC(ret) && iter != ft_word_map.end();
-         ++iter) {
-      if (OB_FAIL(rows[i].init(allocator, FT_WORD_DOC_COL_CNT))) {
-      } else {
-        const ObFTWord &ft_word = iter->first;
-        const int64_t word_cnt = iter->second;
-        // index row format
-        //  -    FTS_INDEX: [WORD], [DOC_ID], [WORD_COUNT], [DOC_LENGTH]
-        //  - FTS_DOC_WORD: [DOC_ID], [WORD], [WORD_COUNT], [DOC_LENGTH]
-        rows[i].storage_datums_[word_idx].set_datum(ft_word.get_word());
-        rows[i].storage_datums_[doc_id_idx].shallow_copy_from_datum(doc_id_datum);
-        rows[i].storage_datums_[word_cnt_idx].set_uint(word_cnt);
-        rows[i].storage_datums_[doc_len_idx].set_uint(doc_length);
-        if (OB_FAIL(word_rows.push_back(&rows[i]))) {
+    if (OB_FAIL(word_rows.reserve(ft_word_map.size()))) {
+    } else {
+      for (ObFTWordMap::const_iterator iter = ft_word_map.begin();
+           OB_SUCC(ret) && iter != ft_word_map.end();
+           ++iter) {
+        if (OB_FAIL(rows[i].init(allocator, FT_WORD_DOC_COL_CNT))) {
         } else {
-          ++i;
+          const ObFTWord &ft_word = iter->first;
+          const int64_t word_cnt = iter->second;
+          // index row format
+          //  -    FTS_INDEX: [WORD], [DOC_ID], [WORD_COUNT], [DOC_LENGTH]
+          //  - FTS_DOC_WORD: [DOC_ID], [WORD], [WORD_COUNT], [DOC_LENGTH]
+          rows[i].storage_datums_[word_idx].set_datum(ft_word.get_word());
+          rows[i].storage_datums_[doc_id_idx].shallow_copy_from_datum(doc_id_datum);
+          rows[i].storage_datums_[word_cnt_idx].set_uint(word_cnt);
+          rows[i].storage_datums_[doc_len_idx].set_uint(doc_length);
+          if (OB_FAIL(word_rows.push_back(&rows[i]))) {
+          } else {
+            ++i;
+          }
         }
       }
     }

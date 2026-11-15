@@ -516,8 +516,8 @@ int ObDASMatchIter::fill_merge_heap()
         ret = OB_SUCCESS;
       }
     } else {
-      ObDatum &domain_id = children_domain_id_exprs_.at(iter_idx)->locate_expr_datum(*eval_ctx_, 0);
-      ObDatum &input_relevance = children_relevance_exprs_.at(iter_idx)->locate_expr_datum(*eval_ctx_, 0);
+      ObDatum &domain_id = children_domain_id_exprs_[iter_idx]->locate_expr_datum(*eval_ctx_, 0);
+      ObDatum &input_relevance = children_relevance_exprs_[iter_idx]->locate_expr_datum(*eval_ctx_, 0);
       item.relevance_ = input_relevance.get_double();
       iter_domain_ids_[iter_idx].from_datum(domain_id);
       item.iter_idx_ = iter_idx;
@@ -621,9 +621,16 @@ int ObDASMatchIter::project_results(const int64_t count)
   if (eval_ctx->is_vectorized()) {
     ObDatum *id_datums = id_proj_expr->locate_batch_datums(*eval_ctx);
     sql::ObBitVector &id_evaluated_flags = id_proj_expr->get_evaluated_flags(*eval_ctx);
-    for (int64_t i = 0; i < count; ++i) {
-      set_datum_func_(id_datums[i], buffered_domain_ids_[i]);
-      id_evaluated_flags.set(i);
+    if (set_datum_func_ == set_doc_id_int) {
+      for (int64_t i = 0; i < count; ++i) {
+        id_datums[i].set_int(buffered_domain_ids_[i].get_datum().get_int());
+        id_evaluated_flags.set(i);
+      }
+    } else {
+      for (int64_t i = 0; i < count; ++i) {
+        set_datum_func_(id_datums[i], buffered_domain_ids_[i]);
+        id_evaluated_flags.set(i);
+      }
     }
     id_proj_expr->set_evaluated_projected(*eval_ctx);
     if (need_project_relevance) {

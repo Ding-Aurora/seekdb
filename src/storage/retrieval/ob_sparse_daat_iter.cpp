@@ -269,7 +269,7 @@ int ObSRDaaTIterImpl::do_one_merge_round(int64_t &count)
     if (OB_UNLIKELY(OB_ITER_END != ret)) {
     }
   } else if (OB_FAIL(collect_dims_by_id(id_datum, relevance, need_project))) {
-  } else if (need_project && OB_FAIL(filter_on_demand(count, relevance, need_project))) {
+  } else if (need_project && iter_param_->need_filter() && OB_FAIL(filter_on_demand(count, relevance, need_project))) {
   } else if (need_project && OB_FAIL(cache_result(count, *id_datum, relevance))) {
     if (OB_ITER_END != ret) {
     }
@@ -424,9 +424,16 @@ int ObSRDaaTIterImpl::project_results(const int64_t count)
   if (eval_ctx->is_vectorized()) {
     ObDatum *id_datums = id_proj_expr->locate_batch_datums(*eval_ctx);
     sql::ObBitVector &id_evaluated_flags = id_proj_expr->get_evaluated_flags(*eval_ctx);
-    for (int64_t i = 0; i < count; ++i) {
-      set_datum_func_(id_datums[i], buffered_domain_ids_[i]);
-      id_evaluated_flags.set(i);
+    if (set_datum_func_ == ObISparseRetrievalMergeIter::set_datum_int) {
+      for (int64_t i = 0; i < count; ++i) {
+        id_datums[i].set_int(buffered_domain_ids_[i].get_datum().get_int());
+        id_evaluated_flags.set(i);
+      }
+    } else {
+      for (int64_t i = 0; i < count; ++i) {
+        set_datum_func_(id_datums[i], buffered_domain_ids_[i]);
+        id_evaluated_flags.set(i);
+      }
     }
     id_proj_expr->set_evaluated_projected(*eval_ctx);
     if (iter_param_->need_project_relevance()) {
