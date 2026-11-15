@@ -71,16 +71,6 @@ int ObFTParser::parse_from_str(const char *parser_name, const int64_t buf_len)
     ret = OB_INVALID_ARGUMENT;
   } else if (OB_UNLIKELY(buf_len >= OB_FT_PARSER_NAME_LENGTH)) {
     ret = OB_INVALID_ARGUMENT;
-  } else if (buf_len == 4 && 0 == memcmp(parser_name, "ik.1", 4)) {
-    if (OB_FAIL(parser_name_.set_name("ik"))) {
-    } else {
-      parser_version_ = BUILTIN_VERSION;
-    }
-  } else if (buf_len == 6 && 0 == memcmp(parser_name, "beng.1", 6)) {
-    if (OB_FAIL(parser_name_.set_name("beng"))) {
-    } else {
-      parser_version_ = BUILTIN_VERSION;
-    }
   } else {
     char name[OB_FT_PARSER_NAME_LENGTH];
     char *saveptr = nullptr;
@@ -346,6 +336,32 @@ int ObFTParseHelper::init(
     ret = OB_INVALID_ARGUMENT;
   } else if (OB_FAIL(parser_name_.parse_from_str(parser_name.ptr(), parser_name.length()))) {
   } else if (OB_FAIL(parser_property_.parse_for_parser_helper(parser_name_, parser_properties))) {
+  } else if (OB_FAIL(parser_name_.get_desc(parser_desc_))) {
+  } else if (OB_ISNULL(parser_desc_)) {
+    ret = OB_ERR_UNEXPECTED;
+  } else if (OB_FAIL(set_add_word_flag(*parser_desc_))) {
+  } else {
+    allocator_ = allocator;
+    is_inited_ = true;
+  }
+  if (OB_FAIL(ret) && OB_UNLIKELY(!is_inited_)) {
+    reset();
+  }
+  return ret;
+}
+
+int ObFTParseHelper::init(
+    common::ObIAllocator *allocator,
+    const ObFTParser &parser,
+    const ObFTParserProperty &parser_property)
+{
+  int ret = OB_SUCCESS;
+  if (OB_UNLIKELY(is_inited_)) {
+    ret = OB_INIT_TWICE;
+  } else if (OB_ISNULL(allocator)) {
+    ret = OB_INVALID_ARGUMENT;
+  } else if (FALSE_IT(parser_name_ = parser)) {
+  } else if (FALSE_IT(parser_property_ = parser_property)) {
   } else if (OB_FAIL(parser_name_.get_desc(parser_desc_))) {
   } else if (OB_ISNULL(parser_desc_)) {
     ret = OB_ERR_UNEXPECTED;

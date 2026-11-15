@@ -41,6 +41,8 @@ public:
 private:
   int add_chain(ObIKTokenChain *chain);
 
+  ObIKTokenChain *find_chain(const int64_t offset, int64_t &idx) const;
+
   int optimize(TokenizeContext &ctx,
                ObIKTokenChain *option,
                ObFTSortList::CellIter iter,
@@ -59,7 +61,8 @@ private:
 
 private:
   ObArenaAllocator alloc_;
-  ObSEArray<ObIKTokenChain *, 32> chains_;
+  // non-empty chains of the batch, ordered by min offset
+  ObSEArray<ObIKTokenChain *, 64> chains_;
 
 private:
   DISALLOW_COPY_AND_ASSIGN(ObIKArbitrator);

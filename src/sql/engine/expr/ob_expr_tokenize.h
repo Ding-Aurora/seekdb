@@ -21,6 +21,7 @@
 #include "lib/allocator/page_arena.h"
 #include "lib/string/ob_string.h"
 #include "sql/engine/expr/ob_expr_operator.h"
+#include "data_plane/fts/ob_fts_parser_helper.h"
 #include "data_plane/fts/ob_fts_parser_property.h"
 
 namespace oceanbase
@@ -78,6 +79,10 @@ private:
       DEFAULT,
       ALL,
     } output_mode_;
+    // parser_name_ and properties_ already parsed into parser_ and parser_property_
+    bool is_parser_parsed_;
+    storage::ObFTParser parser_;
+    storage::ObFTParserProperty parser_property_;
   };
 
 private:
@@ -93,10 +98,11 @@ private:
                                      MultimodeAlloctor &mm_alloc,
                                      TokenizeParam &param);
 
+  // result is the JSON binary of the tokenize() result
   static int tokenize_fulltext(const TokenizeParam &param,
                                TokenizeParam::OUTPUT_MODE mode,
                                common::ObIAllocator &allocator,
-                               ObIJsonBase *&result);
+                               ObString &result);
 
   static int construct_ft_parser_inner_name(const ObString &input_str, TokenizeParam &param);
 

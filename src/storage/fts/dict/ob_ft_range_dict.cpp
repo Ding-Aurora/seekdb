@@ -19,7 +19,6 @@
 
 #include "storage/fts/dict/ob_ik_dic.h"
 #include "lib/allocator/page_arena.h"
-#include "lib/container/ob_vector.h"
 #include "lib/charset/ob_charset.h"
 #include "common/mysqlclient/ob_isql_client.h"
 #include "lib/ob_errno.h"
@@ -379,25 +378,39 @@ int ObFTRangeDict::match_with_hit(const ObString &single_word,
   return last_hit.dict_->match_with_hit(single_word, last_hit, hit);
 }
 
+// Same order as ObCharset::strcmp under CS_TYPE_UTF8MB4_BIN (bytes first, then length), without
+// the per-call charset lookup and argument checks.
+static OB_INLINE int ft_range_bin_cmp(const ObFTSingleWord &range_word, const ObString &word)
+{
+  const int64_t range_len = range_word.word_len;
+  const int64_t word_len = word.length();
+  const int64_t min_len = MIN(range_len, word_len);
+  const unsigned char *l = reinterpret_cast<const unsigned char *>(range_word.word);
+  const unsigned char *r = reinterpret_cast<const unsigned char *>(word.ptr());
+  int cmp = 0;
+  // both sides are a single character, a byte loop is cheaper than calling memcmp
+  for (int64_t i = 0; 0 == cmp && i < min_len; ++i) {
+    cmp = static_cast<int>(l[i]) - static_cast<int>(r[i]);
+  }
+  if (0 == cmp) {
+    cmp = range_len < word_len ? -1 : (range_len > word_len ? 1 : 0);
+  }
+  return cmp;
+}
+
 int ObFTRangeDict::find_first_char_range(const ObString &single_word, ObIFTDict *&dict) const
 {
   int ret = OB_SUCCESS;
-  dict = nullptr;
-  int64_t low = 0;
-  int64_t high = range_dicts_.count() - 1;
-  while (low <= high) {
-    const int64_t mid = low + ((high - low) >> 1);
-    const ObFTRange &range = range_dicts_.at(mid);
-    if (range.end_.get_word().compare(single_word) < 0) {
-      low = mid + 1;
-    } else if (range.start_.get_word().compare(single_word) > 0) {
-      high = mid - 1;
-    } else {
-      dict = range.dict_;
-      break;
+  bool found = false;
+  for (int i = 0; OB_SUCC(ret) && !found && i < range_dicts_.size(); ++i) {
+    if (ft_range_bin_cmp(range_dicts_[i].start_, single_word) <= 0
+        && ft_range_bin_cmp(range_dicts_[i].end_, single_word) >= 0) {
+      dict = range_dicts_[i].dict_;
+      found = true;
     }
   }
-  if (OB_ISNULL(dict)) {
+  if (!found) {
+    // not found, dis match
     ret = OB_ENTRY_NOT_EXIST;
   }
   return ret;
@@ -420,7 +433,6 @@ int ObFTRangeDict::build_dict_from_cache(const ObFTCacheRangeContainer &range_co
       range.end_ = dat->end_word_;
       range.dict_ = dict;
       if (OB_FAIL(range_dicts_.push_back(range))) {
-        OB_DELETEx(ObFTCacheDict, &range_alloc_, dict);
       }
     }
   }

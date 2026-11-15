@@ -111,12 +111,9 @@ int ObIKArbitrator::output_result(TokenizeContext &ctx)
   int ret = OB_SUCCESS;
 
   int64_t char_len = 0;
+  ObIKTokenChain *chain = nullptr;
   int64_t chain_idx = 0;
   for (int64_t current = 0; OB_SUCC(ret) && current < ctx.fulltext_len();) {
-    while (chain_idx < chains_.count() && chains_.at(chain_idx)->min_offset() < current) {
-      ++chain_idx;
-    }
-    ObIKTokenChain *chain = chain_idx < chains_.count() ? chains_.at(chain_idx) : nullptr;
     ObFTCharUtil::CharType type;
     // maybe not so good to keep single, check it later
     if (OB_FAIL(ObCharset::first_valid_char(ctx.collation(),
@@ -129,7 +126,7 @@ int ObIKArbitrator::output_result(TokenizeContext &ctx)
                                                          type))) {
     } else if (ObFTCharUtil::CharType::USELESS == type) {
       current += char_len; // skip useless char
-    } else if (chain == nullptr || chain->min_offset() != current) {
+    } else if (nullptr == (chain = find_chain(current, chain_idx))) {
       if (!keep_single()) {
         // skip single word
       } else {
@@ -308,15 +305,40 @@ int ObIKArbitrator::add_chain(ObIKTokenChain *chain)
     ret = OB_INVALID_ARGUMENT;
   } else if (chain->list().is_empty()) {
     // no need to add empty chain
+  } else if (OB_FAIL(chains_.push_back(chain))) {
   } else {
-    // The input list is sorted, and each chain covers a disjoint span.
-    ret = chains_.push_back(chain);
+    // chains come in token order, keep the array ordered anyway; a min offset is a unique key
+    for (int64_t i = chains_.count() - 1; OB_SUCC(ret) && i > 0; --i) {
+      if (chains_.at(i - 1)->min_offset() < chains_.at(i)->min_offset()) {
+        break;
+      } else if (chains_.at(i - 1)->min_offset() == chains_.at(i)->min_offset()) {
+        ret = OB_HASH_EXIST;
+        chains_.remove(i);
+      } else {
+        std::swap(chains_.at(i - 1), chains_.at(i));
+      }
+    }
   }
   return ret;
 }
 
+// The chain starting at offset, if any. output_result() looks up strictly increasing offsets, so
+// idx only moves forward over chains_.
+ObIKTokenChain *ObIKArbitrator::find_chain(const int64_t offset, int64_t &idx) const
+{
+  ObIKTokenChain *chain = nullptr;
+  while (idx < chains_.count() && chains_.at(idx)->min_offset() < offset) {
+    ++idx;
+  }
+  if (idx < chains_.count() && chains_.at(idx)->min_offset() == offset) {
+    chain = chains_.at(idx);
+  }
+  return chain;
+}
+
 ObIKArbitrator::~ObIKArbitrator()
 {
+  chains_.reset();
   alloc_.reset();
 }
 } // namespace storage
